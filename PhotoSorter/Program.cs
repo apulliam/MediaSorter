@@ -30,7 +30,7 @@ namespace PhotoSorter
                 if (!Directory.Exists(_sourceFolder))
                     throw new ArgumentException("sourceFolder must already exist");
 
-                if (args.Length == 2)
+                if (args.Length >= 2)
                 {
                     _destFolder = args[1];
                     if (!Directory.Exists(_destFolder))
@@ -145,7 +145,7 @@ namespace PhotoSorter
                                 if (oldFileInfo.Length != newFileInfo.Length)
                                 {
 
-                                    if (!FilesAreEqual_Hash(oldFileInfo, newFileInfo))
+                                    if (!FilesAreEqual(oldFileInfo, newFileInfo))
                                     {
                                         var copyCount = 1;
 
@@ -192,17 +192,26 @@ namespace PhotoSorter
             }
         }
 
-        static bool FilesAreEqual_Hash(FileInfo first, FileInfo second)
+        static bool FilesAreEqual(FileInfo first, FileInfo second)
         {
-            byte[] firstHash = MD5.Create().ComputeHash(first.OpenRead());
-            byte[] secondHash = MD5.Create().ComputeHash(second.OpenRead());
-
-            for (int i = 0; i < firstHash.Length; i++)
+            using (var firstFile = first.OpenRead())
             {
-                if (firstHash[i] != secondHash[i])
-                    return false;
+                using (var secondFile = second.OpenRead())
+                {
+                    using (var md5 = MD5.Create())
+                    {
+                        byte[] firstHash = md5.ComputeHash(firstFile);
+                        byte[] secondHash = md5.ComputeHash(secondFile);
+
+                        for (int i = 0; i < firstHash.Length; i++)
+                        {
+                            if (firstHash[i] != secondHash[i])
+                                return false;
+                        }
+                        return true;
+                    }
+                }
             }
-            return true;
         }
     }
 }
