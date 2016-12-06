@@ -115,6 +115,7 @@ namespace PhotoSorter
 
                         if (!File.Exists(newPath))
                         {
+                            Console.WriteLine("Moving " + fileSystemEntry + " to " + newPath);
                             File.Move(fileSystemEntry, newPath);
                             fileMoved = true;
                         }
@@ -132,6 +133,7 @@ namespace PhotoSorter
                                 }
                                 while (File.Exists(newPath));
                                 Directory.CreateDirectory(newFolder);
+                                Console.WriteLine("Moving " + fileSystemEntry + " to " + newPath);
                                 File.Move(fileSystemEntry, newPath);
                                 fileMoved = true;
                             }
@@ -157,12 +159,16 @@ namespace PhotoSorter
                                         }
                                         while (File.Exists(newPath));
                                         Directory.CreateDirectory(newFolder);
+                                        Console.WriteLine("Moving " + fileSystemEntry + " to " + newPath);
                                         File.Move(fileSystemEntry, newPath);
                                         fileMoved = true;
                                     }
                                 }
                                 if (!fileMoved)
+                                {
+                                    Console.WriteLine("Deleting " + fileSystemEntry);
                                     File.Delete(fileSystemEntry);
+                                }
                             }
                         }
 
