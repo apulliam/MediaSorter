@@ -14,9 +14,10 @@ namespace PhotoSorter
     {
         private static string _sourceFolder = null;
         private static string _destFolder = null;
+        private static bool _keepDuplicates = false;
 
-        private static string[] _supportedExtensions = {
-            ".jpg", ".jpeg", ".tif"
+        private static string[] _jpegExtensions = {
+            ".jpg", ".jpeg"
         };
 
         static void Main(string[] args)
@@ -37,11 +38,17 @@ namespace PhotoSorter
                 }
                 if (_destFolder == null)
                     _destFolder = _sourceFolder;
+                if (args.Length == 3)
+                    if (args[2].Equals("-keepDuplicates",StringComparison.CurrentCultureIgnoreCase))
+                        _keepDuplicates = true;
+                    else
+                        throw new ArgumentException("Invalid argument:" + args[2]);
+
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                Console.WriteLine("\nPhotoSort <sourceFolder> [<destFolder>]");
+                Console.WriteLine("\nPhotoSort <sourceFolder> [<destFolder>] [-keepDuplicates]");
                 Console.WriteLine("<destFolder> = <sourceFolder> if <destFolder> is omitted");
             }
             if (_sourceFolder != null)
@@ -63,68 +70,139 @@ namespace PhotoSorter
                 }
                 else
                 {
+                    var fileMoved = false;
                     var fileInfo = new FileInfo(fileSystemEntry);
-                    if (_supportedExtensions.Contains(fileInfo.Extension.ToLower()))
+                    if (_jpegExtensions.Contains(fileInfo.Extension.ToLower()))
                     {
                         DateTime dateTime;
                         string model;
 
-                        using (var reader = new ExifReader(fileSystemEntry))
+                        try
                         {
-                            if (!reader.GetTagValue(ExifTags.DateTimeOriginal, out dateTime))
-                                continue;
-                            reader.GetTagValue(ExifTags.Model, out model);
+                            using (var reader = new ExifReader(fileSystemEntry))
+                            {
+                                if (!reader.GetTagValue(ExifTags.DateTimeOriginal, out dateTime))
+                                {
+                                    Console.WriteLine("Skipping " + fileSystemEntry +  " - No DateTimeOriginal Exif tag");
+                                    continue;
+                                }
+                                if (!reader.GetTagValue(ExifTags.Model, out model))
+                                {
+                                    Console.WriteLine("Skipping " + fileSystemEntry + " - No Model Exif tag");
+                                    continue;
+                                }
+                            }
                         }
+                        catch
+                        {
+                            // skip pictures where we can't read Exif tags
+                            Console.WriteLine("Skipping " + fileSystemEntry + " - No Exif tags");
+                            continue;
+                        }
+                        var yearFolder = dateTime.Year.ToString();
                         var dateFolder = dateTime.ToString("yyyy-MM-dd");
-                        var newFolder = Path.Combine(_destFolder, dateFolder, model);
+                        var newFolder = Path.Combine(_destFolder, yearFolder, dateFolder, model);
 
                         Directory.CreateDirectory(newFolder);
                         var newPath = Path.Combine(newFolder, Path.GetFileName(fileSystemEntry));
 
                         // skip files already in the right place to allow reprocessing directories
                         if (newPath.Equals(fileSystemEntry))
+                        {
+                            Console.WriteLine("Skipping " + fileSystemEntry + " - already in correct directory");
                             continue;
+                        }
 
                         if (!File.Exists(newPath))
                         {
                             File.Move(fileSystemEntry, newPath);
+                            fileMoved = true;
                         }
                         else  // handle duplicates
                         {
-                            var copyCount = 1;
-
-                            do
+                            if (_keepDuplicates)
                             {
-                                var newFileName = string.Format("{0} ({1}){2}", fileInfo.Name, copyCount++, Path.GetExtension(fileSystemEntry));
-                                newFolder = Path.Combine(new string[] { _destFolder, dateFolder, model, "duplicates" });
-                                newPath = Path.Combine(newFolder, newFileName);
+                                var copyCount = 1;
+
+                                do
+                                {
+                                    var newFileName = string.Format("{0} ({1}){2}", fileInfo.Name, copyCount++, Path.GetExtension(fileSystemEntry));
+                                    newFolder = Path.Combine(new string[] { _destFolder, yearFolder, dateFolder, model, "duplicates" });
+                                    newPath = Path.Combine(newFolder, newFileName);
+                                }
+                                while (File.Exists(newPath));
+                                Directory.CreateDirectory(newFolder);
+                                File.Move(fileSystemEntry, newPath);
+                                fileMoved = true;
                             }
-                            while (File.Exists(newPath));
-                            Directory.CreateDirectory(newFolder);
-                            File.Move(fileSystemEntry, newPath);
+                            else
+                            {
+                                //  check filesize and checksum
+                                var oldFileInfo = new FileInfo(fileSystemEntry);
+                                var newFileInfo = new FileInfo(newPath);
+
+                                // create duplicate only if filesize and checksum don't match
+                                if (oldFileInfo.Length != newFileInfo.Length)
+                                {
+
+                                    if (!FilesAreEqual_Hash(oldFileInfo, newFileInfo))
+                                    {
+                                        var copyCount = 1;
+
+                                        do
+                                        {
+                                            var newFileName = string.Format("{0} ({1}){2}", fileInfo.Name, copyCount++, Path.GetExtension(fileSystemEntry));
+                                            newFolder = Path.Combine(new string[] { _destFolder, yearFolder, dateFolder, model });
+                                            newPath = Path.Combine(newFolder, newFileName);
+                                        }
+                                        while (File.Exists(newPath));
+                                        Directory.CreateDirectory(newFolder);
+                                        File.Move(fileSystemEntry, newPath);
+                                        fileMoved = true;
+                                    }
+                                }
+                                if (!fileMoved)
+                                    File.Delete(fileSystemEntry);
+                            }
                         }
 
-                        var oldPath = Path.GetDirectoryName(fileSystemEntry);
-                        var oldFolders = oldPath.Split(Path.DirectorySeparatorChar);
-                        if (oldFolders != null && oldFolders.Length > 0)
+                        if (fileMoved)
                         {
-                            // Log old directory if it contains any info other than date
-                            var oldParentFolder = oldFolders[oldFolders.Length - 1];
-                            if (!oldParentFolder.Equals(dateFolder))
+                            var oldPath = Path.GetDirectoryName(fileSystemEntry);
+                            var oldFolders = oldPath.Split(Path.DirectorySeparatorChar);
+                            if (oldFolders != null && oldFolders.Length > 0)
                             {
-                                var changeNote = Path.Combine(newFolder, Path.GetFileNameWithoutExtension(newPath) + ".txt");
-                                using (var fileStream = new StreamWriter(changeNote))
+                                // Log old directory if it contains any info other than date
+                                var oldParentFolder = oldFolders[oldFolders.Length - 1];
+                                if (!oldParentFolder.Equals(dateFolder))
                                 {
-                                    fileStream.WriteLine("Orginal path =  " + fileSystemEntry);
+                                    var changeNote = Path.Combine(newFolder, Path.GetFileNameWithoutExtension(newPath) + ".txt");
+                                    using (var fileStream = new StreamWriter(changeNote))
+                                    {
+                                        fileStream.WriteLine("Orginal path =  " + fileSystemEntry);
+                                    }
                                 }
-                            }
 
-                            if (!Directory.EnumerateFileSystemEntries(oldPath).Any())
-                                Directory.Delete(oldPath);
+                                if (!Directory.EnumerateFileSystemEntries(oldPath).Any())
+                                    Directory.Delete(oldPath);
+                            }
                         }
                     }
                 }
             }
+        }
+
+        static bool FilesAreEqual_Hash(FileInfo first, FileInfo second)
+        {
+            byte[] firstHash = MD5.Create().ComputeHash(first.OpenRead());
+            byte[] secondHash = MD5.Create().ComputeHash(second.OpenRead());
+
+            for (int i = 0; i < firstHash.Length; i++)
+            {
+                if (firstHash[i] != secondHash[i])
+                    return false;
+            }
+            return true;
         }
     }
 }
