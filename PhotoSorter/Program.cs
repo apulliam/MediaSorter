@@ -74,17 +74,26 @@ namespace PhotoSorter
                     var fileInfo = new FileInfo(fileSystemEntry);
                     if (_jpegExtensions.Contains(fileInfo.Extension.ToLower()))
                     {
-                        DateTime dateTime;
+                        DateTime dateTime, dateTimeOriginal;
                         string model;
 
                         try
                         {
                             using (var reader = new ExifReader(fileSystemEntry))
                             {
-                                if (!reader.GetTagValue(ExifTags.DateTimeOriginal, out dateTime))
+                                var dateTimeFound = reader.GetTagValue(ExifTags.DateTime, out dateTime);
+                                var originalDateTimeFound = reader.GetTagValue(ExifTags.DateTimeOriginal, out dateTimeOriginal);
+                                if (originalDateTimeFound)
                                 {
-                                    Console.WriteLine("Skipping " + fileSystemEntry +  " - No DateTimeOriginal Exif tag");
-                                    continue;
+                                    dateTime = dateTimeOriginal;
+                                }
+                                else
+                                {
+                                    if (!dateTimeFound)
+                                    {
+                                        Console.WriteLine("Skipping " + fileSystemEntry + " - No DateTimeOriginal or DateTime Exif tag");
+                                        continue;
+                                    }
                                 }
                                 if (!reader.GetTagValue(ExifTags.Model, out model))
                                 {
@@ -109,7 +118,7 @@ namespace PhotoSorter
                         // skip files already in the right place to allow reprocessing directories
                         if (newPath.Equals(fileSystemEntry))
                         {
-                            Console.WriteLine("Skipping " + fileSystemEntry + " - already in correct directory");
+                            //Console.WriteLine("Skipping " + fileSystemEntry + " - already in correct directory");
                             continue;
                         }
 
@@ -166,7 +175,7 @@ namespace PhotoSorter
                                 }
                                 if (!fileMoved)
                                 {
-                                    Console.WriteLine("Deleting " + fileSystemEntry);
+                                    Console.WriteLine("Deleting duplicate " + fileSystemEntry);
                                     File.Delete(fileSystemEntry);
                                 }
                             }
