@@ -153,30 +153,21 @@ namespace PhotoSorter
                                 var newFileInfo = new FileInfo(newPath);
 
                                 // create duplicate only if filesize and checksum don't match
-                                if (oldFileInfo.Length != newFileInfo.Length)
+                                if (oldFileInfo.Length != newFileInfo.Length || !FilesAreEqual(oldFileInfo, newFileInfo))
                                 {
+                                    var copyCount = 1;
 
-                                    if (!FilesAreEqual(oldFileInfo, newFileInfo))
+                                    do
                                     {
-                                        var copyCount = 1;
-
-                                        do
-                                        {
-                                            var newFileName = string.Format("{0} ({1}){2}", fileInfo.Name, copyCount++, Path.GetExtension(fileSystemEntry));
-                                            newFolder = Path.Combine(new string[] { _destFolder, yearFolder, dateFolder, model });
-                                            newPath = Path.Combine(newFolder, newFileName);
-                                        }
-                                        while (File.Exists(newPath));
-                                        Directory.CreateDirectory(newFolder);
-                                        Console.WriteLine("Moving " + fileSystemEntry + " to " + newPath);
-                                        File.Move(fileSystemEntry, newPath);
-                                        fileMoved = true;
+                                        var newFileName = string.Format("{0} ({1}){2}", fileInfo.Name, copyCount++, Path.GetExtension(fileSystemEntry));
+                                        newFolder = Path.Combine(new string[] { _destFolder, yearFolder, dateFolder, model });
+                                        newPath = Path.Combine(newFolder, newFileName);
                                     }
-                                }
-                                if (!fileMoved)
-                                {
-                                    Console.WriteLine("Deleting duplicate " + fileSystemEntry);
-                                    File.Delete(fileSystemEntry);
+                                    while (File.Exists(newPath));
+                                    Directory.CreateDirectory(newFolder);
+                                    Console.WriteLine("Moving " + fileSystemEntry + " to " + newPath);
+                                    File.Move(fileSystemEntry, newPath);
+                                    fileMoved = true;
                                 }
                             }
                         }
@@ -202,6 +193,11 @@ namespace PhotoSorter
                                     Directory.Delete(oldPath);
                             }
                         }
+                        else
+                        {
+                        Console.WriteLine("Deleting duplicate " + fileSystemEntry);
+                        //File.Delete(fileSystemEntry);
+                        }
                     }
                 }
             }
@@ -215,8 +211,8 @@ namespace PhotoSorter
                 {
                     using (var md5 = MD5.Create())
                     {
-                        byte[] firstHash = md5.ComputeHash(firstFile);
-                        byte[] secondHash = md5.ComputeHash(secondFile);
+                        var firstHash = md5.ComputeHash(firstFile);
+                        var secondHash = md5.ComputeHash(secondFile);
 
                         for (int i = 0; i < firstHash.Length; i++)
                         {
