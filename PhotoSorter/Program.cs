@@ -1,15 +1,8 @@
 ﻿using System;
 using System.IO;
 using ExifLib;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using System.Linq;
-using System.Security.AccessControl;
-using MetadataExtractor;
-using MetadataExtractor.Formats.Exif;
-using System.Globalization;
 
 namespace PhotoSorter
 {
@@ -24,7 +17,7 @@ namespace PhotoSorter
 
         private static string _duplicatesFolder = "ps-duplicates";
         private static string[] _supportedExtensions = {
-            ".jpg", ".jpeg"//, ".tif",".tiff"
+            ".jpg", ".jpeg"
         };
 
         static void Main(string[] args)
@@ -111,44 +104,6 @@ namespace PhotoSorter
                     continue;
                 }
 
-#if false
-                var metadataDirectories = MetadataExtractor.Formats.Jpeg.JpegMetadataReader.ReadMetadata(file);
-                if (metadataDirectories == null)
-                {
-                    // skip pictures where we can't read Exif tags
-                    _logFile.WriteLine("Skipping " + file + " - No Exif tags");
-                    continue;
-                }
-
-                var subIfdDirectory = metadataDirectories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-                DateTime dateTime;
-                try
-                {
-                    dateTime = subIfdDirectory.GetDateTime(ExifDirectoryBase.TagDateTimeOriginal);
-                }
-                catch
-                {
-                    try
-                    {
-
-                        dateTime = subIfdDirectory.GetDateTime(ExifDirectoryBase.TagDateTime);
-                    }
-                    catch
-                    { 
-                        _logFile.WriteLine("Skipping " + file + " - No DateTimeOriginal or DateTime Exif tag");
-                        continue;
-
-                    }
-
-                }
-                  
-                var id0Directory = metadataDirectories.OfType<ExifIfd0Directory>().FirstOrDefault();
-                var model = id0Directory.GetDescription(ExifDirectoryBase.TagModel);
-                var make = id0Directory.GetDescription(ExifDirectoryBase.TagMake);
-                //var dateTime = DateTime.ParseExact(dateTimeTag, "yyyy:MM:dd HH:mm:ss",
-                //                       CultureInfo.CurrentCulture, DateTimeStyles.None);
-#endif
-#if true
                 DateTime dateTime, dateTimeOriginal, digitizedTime;
                 string make, model;
                    
@@ -181,7 +136,7 @@ namespace PhotoSorter
                     _logFile.WriteLine("Skipping " + file + " - No Exif tags");
                     continue;
                 }
-#endif
+
                 var camera = string.Empty;
                 if (make != null)
                     camera += make;
