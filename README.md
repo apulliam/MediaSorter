@@ -1,4 +1,4 @@
-# PhotoSorter
+# MediaSorter
 Yet another photo sorter!  This one is designed to identify and save off duplicate so they can be deleted.
 
 PhotoSorter \<sourceFolder> [\<destFolder>] [-keepDuplicates]
@@ -18,6 +18,6 @@ If the original JPEG parent folder contained any information other than the date
 
 All Thumbs.db files in the source folder will be deleted and all empty directories will be removed from the source folder after files are moved.
 
-To allow PhotoSorter to be run repeatedly where \<destFolder> = \<sourceFolder>, PhotoSorter wills ignore JPEG files already in the correct directory, and any duplicates directories.
+To allow PhotoSorter to be run repeatedly where \<destFolder> = \<sourceFolder>, PhotoSorter will ignore files already in the correct directory, and any duplicates directories.
 
 

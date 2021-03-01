@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MediaSorter": {
+      "commandName": "Project",
+      "commandLineArgs": "-s \"c:\\DCIM\" -d  c:\\Users\\apulliam\\OneDrive\\Pictures -mpvc"
+    }
+  }
+}
